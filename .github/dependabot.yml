@@ -1,0 +1,43 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+    # Only group minor/patch updates. Major updates get their own PR
+    # so breaking changes (e.g. tailwind v3→v4, react-router v6→v7) can be
+    # reviewed and migrated individually.
+    groups:
+      dev-dependencies-minor:
+        dependency-type: 'development'
+        update-types:
+          - 'minor'
+          - 'patch'
+      production-dependencies-minor:
+        dependency-type: 'production'
+        update-types:
+          - 'minor'
+          - 'patch'
+    # Keep Node 22-only dev-tool majors out of the weekly queue until the
+    # project intentionally migrates CI and local contributor docs from Node 20.
+    ignore:
+      - dependency-name: '@commitlint/cli'
+        update-types:
+          - 'version-update:semver-major'
+      - dependency-name: '@commitlint/config-conventional'
+        update-types:
+          - 'version-update:semver-major'
+      - dependency-name: 'lint-staged'
+        update-types:
+          - 'version-update:semver-major'
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    labels:
+      - 'dependencies'
+      - 'github-actions'

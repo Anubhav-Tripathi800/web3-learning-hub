@@ -1,0 +1,119 @@
+name: Bug Report / Bug 报告
+description: Report a product, content, build, or AI-native issue.
+title: '[Bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Get Started with Web3. 请尽可能提供复现步骤、链接和截图。
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / 问题区域
+      options:
+        - Website UI / 网站界面
+        - Lesson content / 课程内容
+        - Translation / 翻译
+        - Quiz or badges / 测验或徽章
+        - AI Tutor / AI 导师
+        - llms.txt or AI artifacts / AI 入口
+        - MCP server / MCP 服务
+        - Build or CI / 构建或 CI
+        - Other / 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened? / 发生了什么？
+      placeholder: 'Describe the bug clearly.'
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / 期望行为
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / 实际行为
+    validations:
+      required: true
+
+  - type: input
+    id: url_or_file
+    attributes:
+      label: URL or file path / 链接或文件路径
+      placeholder: 'https://beihaili.github.io/Get-Started-with-Web3/... or en/...'
+
+  - type: textarea
+    id: expected_files
+    attributes:
+      label: Expected files or area / 预计涉及文件或区域
+      description: Optional. Add likely files, lessons, routes, or components if you know them.
+      placeholder: 'src/pages/..., en/..., scripts/...'
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of done / 完成标准
+      description: What result would prove the bug is fixed?
+      placeholder: 'The page no longer..., the broken link opens, the test reproduces and passes...'
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser / 浏览器
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - Not browser-specific
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device / 设备
+      options:
+        - Desktop
+        - Mobile
+        - Tablet
+        - Not device-specific
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or logs / 截图或日志
+      description: Paste screenshots, console output, or CI log links when useful.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution / 贡献意向
+      options:
+        - label: This could be a `good first issue` if the fix is small and reproducible.
+        - label: I can help fix this bug.

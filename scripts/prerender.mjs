@@ -1,0 +1,186 @@
+/**
+ * SSG 预渲染脚本
+ * 使用 Playwright 访问每个路由并生成静态 HTML
+ *
+ * 用法: node scripts/prerender.mjs
+ * 前置条件: npm install --save-dev playwright && npx playwright install chromium
+ */
+
+import { chromium } from 'playwright';
+import { createServer } from 'http';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { normalizeBasePath } from '../src/config/siteConfig.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DIST_DIR = join(__dirname, '..', 'dist');
+const BASE_PATH = normalizeBasePath(process.env.VITE_BASE_PATH).replace(/\/$/, '');
+const PORT = 4173;
+
+// 从 courseData 动态生成路由列表（支持 i18n 语言前缀）
+function getRoutes() {
+  const langs = ['en', 'zh'];
+
+  // 根路径（重定向入口）
+  const routes = ['/'];
+
+  // 读取 courseData 源码提取课程路由
+  const courseDataPath = join(__dirname, '..', 'src', 'config', 'courseData.js');
+  const content = readFileSync(courseDataPath, 'utf-8');
+
+  // 逐行扫描：遇到模块 ID 更新上下文，遇到课程 ID 生成路由
+  let currentModuleId = null;
+  const lines = content.split('\n');
+  const lessonPairs = [];
+
+  for (const line of lines) {
+    const moduleMatch = line.match(/id:\s*'(module-\d+)'/);
+    if (moduleMatch) {
+      currentModuleId = moduleMatch[1];
+    }
+    const lessonMatch = line.match(/id:\s*'(\d+-\d+)'/);
+    if (lessonMatch && currentModuleId) {
+      lessonPairs.push({ moduleId: currentModuleId, lessonId: lessonMatch[1] });
+    }
+  }
+
+  // 为每种语言生成静态页面路由和课程路由
+  for (const lang of langs) {
+    routes.push(`/${lang}`);
+    routes.push(`/${lang}/dashboard`);
+    routes.push(`/${lang}/badges`);
+    routes.push(`/${lang}/articles`);
+    routes.push(`/${lang}/support`);
+    routes.push(`/${lang}/contributors`);
+    routes.push(`/${lang}/glossary`);
+    routes.push(`/${lang}/labs/wallet`);
+    routes.push(`/${lang}/labs/siwe`);
+    routes.push(`/${lang}/labs/account-abstraction`);
+    routes.push(`/${lang}/labs/l2-risk`);
+
+    for (const { moduleId, lessonId } of lessonPairs) {
+      routes.push(`/${lang}/learn/${moduleId}/${lessonId}`);
+    }
+  }
+
+  return routes;
+}
+
+// 简单静态文件服务器
+function createStaticServer() {
+  const mimeTypes = {
+    '.html': 'text/html',
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.md': 'text/markdown',
+    '.MD': 'text/markdown',
+  };
+
+  return createServer((req, res) => {
+    let url = req.url;
+
+    // 去掉 base path
+    if (BASE_PATH && url.startsWith(BASE_PATH)) {
+      url = url.slice(BASE_PATH.length) || '/';
+    }
+
+    // SPA fallback: 非静态资源都返回 index.html
+    let filePath = join(DIST_DIR, url);
+    if (!existsSync(filePath) || url === '/') {
+      filePath = join(DIST_DIR, 'index.html');
+    }
+
+    try {
+      const data = readFileSync(filePath);
+      const ext = '.' + filePath.split('.').pop();
+      const contentType = mimeTypes[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(data);
+    } catch {
+      // Fallback to index.html for SPA routes
+      try {
+        const data = readFileSync(join(DIST_DIR, 'index.html'));
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(data);
+      } catch {
+        res.writeHead(404);
+        res.end('Not Found');
+      }
+    }
+  });
+}
+
+async function prerender() {
+  const routes = getRoutes();
+  console.log(`[prerender] Found ${routes.length} routes to prerender`);
+
+  // 启动静态服务器
+  const server = createStaticServer();
+  await new Promise((resolve) => server.listen(PORT, resolve));
+  console.log(`[prerender] Static server running on http://localhost:${PORT}`);
+
+  // 启动浏览器
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+
+  let success = 0;
+  let failed = 0;
+
+  for (const route of routes) {
+    const url = `http://localhost:${PORT}${BASE_PATH}${route}`;
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+
+      // 等待内容渲染（markdown 加载等）
+      await page.waitForTimeout(1000);
+
+      // 获取完整 HTML
+      const html = await page.content();
+
+      // 确定输出路径
+      const outputPath =
+        route === '/' ? join(DIST_DIR, 'index.html') : join(DIST_DIR, route.slice(1), 'index.html');
+
+      // 创建目录
+      const outputDir = dirname(outputPath);
+      mkdirSync(outputDir, { recursive: true });
+
+      // 写入 HTML
+      writeFileSync(outputPath, html, 'utf-8');
+      success++;
+      console.log(`  ✓ ${route}`);
+    } catch (err) {
+      failed++;
+      console.error(`  ✗ ${route}: ${err.message}`);
+    } finally {
+      await page.close();
+    }
+  }
+
+  // 清理
+  await browser.close();
+  server.close();
+
+  console.log(
+    `\n[prerender] Done: ${success} succeeded, ${failed} failed out of ${routes.length} routes`
+  );
+
+  if (failed > 0) {
+    process.exit(1);
+  }
+}
+
+prerender().catch((err) => {
+  console.error('[prerender] Fatal error:', err);
+  process.exit(1);
+});

@@ -1,0 +1,385 @@
+import { Link, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
+import {
+  Rocket,
+  BookOpen,
+  Award,
+  Users,
+  Star,
+  GitBranch,
+  Bot,
+  FileJson,
+  Terminal,
+} from 'lucide-react';
+import { ParticleBackground } from '../components/animations';
+import { MouseSpotlight } from '../components/animations';
+import { HashVisualizer } from '../components/interactive';
+import { WalletSimulator } from '../components/interactive';
+import { COURSE_DATA } from '../config/courseData';
+import { useUserStore } from '../store/useUserStore';
+import DonationSection from '../components/DonationSection';
+import SponsorSection from '../components/SponsorSection';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import SeoHead from '../components/SeoHead';
+import { APP_BASE_PATH, SITE_BASE_URL, buildSiteUrl, joinBasePath } from '../config/siteConfig';
+import { trackAnalyticsEvent } from '../utils/analytics';
+
+/**
+ * 着陆页（首页）
+ */
+const LandingPage = () => {
+  const { lang } = useParams();
+  const { t } = useTranslation();
+  const { totalExperience, userTitle, progress, studyStreak } = useUserStore();
+  const totalLessons = COURSE_DATA.reduce((sum, m) => sum + m.lessons.length, 0);
+  const completedCount = Object.keys(progress).length;
+
+  const siteUrl = `${SITE_BASE_URL}/`;
+  const canonicalUrl = buildSiteUrl(`/${lang}`);
+  const altLang = lang === 'en' ? 'zh' : 'en';
+  const alternateUrl = buildSiteUrl(`/${altLang}`);
+  const llmsTxtUrl = joinBasePath(APP_BASE_PATH, '/llms.txt');
+  const aiManifestUrl = joinBasePath(APP_BASE_PATH, '/ai/manifest.json');
+  const githubRepoUrl = 'https://github.com/beihaili/Get-Started-with-Web3';
+
+  const trackLandingCtaClick = (ctaId, placement, extra = {}) => {
+    trackAnalyticsEvent('cta_click', {
+      event_category: 'growth',
+      cta_id: ctaId,
+      placement,
+      language: lang,
+      ...extra,
+    });
+  };
+
+  const trackAiEntrypointClick = (entrypoint) => {
+    trackAnalyticsEvent('ai_entrypoint_click', {
+      event_category: 'ai_native',
+      entrypoint,
+      placement: 'landing_ai_agent_entry',
+      language: lang,
+    });
+  };
+
+  useEffect(() => {
+    let script = document.querySelector('script[data-platform-ld]');
+    if (!script) {
+      script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.setAttribute('data-platform-ld', 'true');
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Get Started with Web3',
+      url: siteUrl,
+      publisher: {
+        '@type': 'Organization',
+        name: 'Get Started with Web3',
+        url: 'https://github.com/beihaili/Get-Started-with-Web3',
+      },
+    });
+  }, [siteUrl]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative overflow-hidden">
+      <SeoHead
+        title={t('landing.pageTitle')}
+        description={t('landing.subtitle')}
+        url={canonicalUrl}
+        type="webpage"
+        lang={lang}
+        alternateUrl={alternateUrl}
+      />
+      <ParticleBackground />
+      <MouseSpotlight />
+
+      {/* Language switcher */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher />
+      </div>
+
+      <main className="container mx-auto px-4 py-16 relative z-10">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <div className="inline-block mb-6 px-4 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-full">
+            <span className="text-cyan-400 text-sm font-medium">
+              {t('landing.heroBadge', { count: totalLessons })}
+            </span>
+          </div>
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black mb-6 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent leading-tight">
+            Get Started
+            <br />
+            with Web3
+          </h1>
+          <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto mb-8">
+            {t('landing.subtitle')}
+          </p>
+          {studyStreak > 0 && (
+            <div className="inline-block mb-4 px-4 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-full">
+              <span className="text-orange-400 text-sm font-medium">
+                {t('landing.studyStreak', { count: studyStreak })}
+              </span>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-4 justify-center">
+            <Link
+              to={`/${lang}/dashboard`}
+              onClick={() => trackLandingCtaClick('start_learning', 'landing_hero')}
+              className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-full transition-all hover:scale-105 shadow-lg shadow-cyan-500/20"
+            >
+              {t('landing.startLearning')}
+            </Link>
+            <a
+              href={githubRepoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() =>
+                trackLandingCtaClick('github_repo', 'landing_hero', {
+                  destination_hostname: new URL(githubRepoUrl).hostname,
+                })
+              }
+              className="px-8 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-bold rounded-full transition-all hover:scale-105 border border-slate-200 dark:border-slate-700 flex items-center gap-2"
+            >
+              <GitBranch className="w-4 h-4" />
+              GitHub
+            </a>
+          </div>
+        </div>
+
+        {/* Stats Bar */}
+        <div className="max-w-3xl mx-auto mb-16">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-2xl">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-400">{COURSE_DATA.length}</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                {t('landing.statsModules')}
+              </div>
+            </div>
+            <div className="text-center border-x border-slate-200 dark:border-slate-700">
+              <div className="text-3xl font-bold text-blue-400">{totalLessons}</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                {t('landing.statsLessons')}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-purple-400">5</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                {t('landing.statsLayers')}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-16">
+          <Link
+            to={`/${lang}/dashboard`}
+            onClick={() => trackLandingCtaClick('start_learning_card', 'landing_quick_actions')}
+            className="group p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-xl hover:border-cyan-500/40 transition-all hover:scale-105"
+          >
+            <div className="flex flex-col items-center text-center">
+              <Rocket className="w-12 h-12 text-cyan-400 mb-4 group-hover:animate-bounce" />
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                {t('landing.cardStartTitle')}
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400">{t('landing.cardStartDesc')}</p>
+              {completedCount > 0 && (
+                <div className="mt-3 text-xs text-cyan-400">
+                  {t('landing.cardStartProgress', {
+                    completed: completedCount,
+                    total: totalLessons,
+                  })}
+                </div>
+              )}
+            </div>
+          </Link>
+
+          <Link
+            to={`/${lang}/badges`}
+            className="group p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-xl hover:border-purple-500/40 transition-all hover:scale-105"
+          >
+            <div className="flex flex-col items-center text-center">
+              <Award className="w-12 h-12 text-purple-400 mb-4 group-hover:animate-pulse" />
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                {t('landing.cardBadgesTitle')}
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400">{t('landing.cardBadgesDesc')}</p>
+              {totalExperience > 0 && (
+                <div className="mt-3 text-xs text-purple-400">
+                  {userTitle} · {totalExperience} XP
+                </div>
+              )}
+            </div>
+          </Link>
+
+          <a
+            href={githubRepoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() =>
+              trackLandingCtaClick('github_repo', 'landing_quick_actions', {
+                destination_hostname: new URL(githubRepoUrl).hostname,
+              })
+            }
+            className="group p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-xl hover:border-blue-500/40 transition-all hover:scale-105"
+          >
+            <div className="flex flex-col items-center text-center">
+              <BookOpen className="w-12 h-12 text-blue-400 mb-4" />
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                {t('landing.cardGitHubTitle')}
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400">{t('landing.cardGitHubDesc')}</p>
+            </div>
+          </a>
+        </div>
+
+        {/* AI Agent Entry */}
+        <section className="max-w-4xl mx-auto mb-16">
+          <div className="p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-xl">
+            <div className="flex flex-col md:flex-row md:items-start gap-5">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center shrink-0">
+                <Bot className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                  {t('landing.agentTitle')}
+                </h2>
+                <p className="text-slate-500 dark:text-slate-400 mb-5">{t('landing.agentDesc')}</p>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <a
+                    href={llmsTxtUrl}
+                    onClick={() => trackAiEntrypointClick('llms.txt')}
+                    className="flex items-center gap-2 px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-200 hover:border-cyan-500/40 transition-colors"
+                  >
+                    <BookOpen className="w-4 h-4 text-cyan-400" />
+                    llms.txt
+                  </a>
+                  <a
+                    href={aiManifestUrl}
+                    onClick={() => trackAiEntrypointClick('manifest.json')}
+                    className="flex items-center gap-2 px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-200 hover:border-purple-500/40 transition-colors"
+                  >
+                    <FileJson className="w-4 h-4 text-purple-400" />
+                    manifest.json
+                  </a>
+                  <code className="flex items-center gap-2 px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-200 overflow-x-auto">
+                    <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
+                    npm run mcp:web3
+                  </code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Interactive Demos */}
+        <div className="max-w-4xl mx-auto mb-16">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white text-center mb-8">
+            {t('landing.interactiveTitle')}
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <HashVisualizer />
+            <WalletSimulator />
+          </div>
+        </div>
+
+        {/* Learning Path */}
+        <div className="max-w-4xl mx-auto mb-16">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white text-center mb-8">
+            {t('landing.learningPathTitle')}
+          </h2>
+          <div className="space-y-3">
+            {COURSE_DATA.map((module, idx) => {
+              const Icon = module.icon;
+              return (
+                <Link
+                  key={module.id}
+                  to={`/${lang}/dashboard`}
+                  className="flex items-center gap-4 p-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-xl hover:border-cyan-500/30 transition-all group"
+                >
+                  <div
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${module.color} flex items-center justify-center shrink-0`}
+                  >
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-slate-900 dark:text-white font-bold truncate">
+                      {module.title}
+                    </h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">
+                      {t('landing.lessonsCount', { count: module.lessons.length })}
+                    </p>
+                  </div>
+                  <span className="text-slate-500 group-hover:text-cyan-400 transition-colors text-sm">
+                    {idx === 0 ? t('landing.recommended') : t('landing.stage', { n: idx + 1 })} →
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Donation */}
+        <DonationSection />
+
+        {/* Sponsors */}
+        <SponsorSection />
+
+        {/* Community */}
+        <div className="max-w-3xl mx-auto mb-16 text-center">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
+            {t('landing.communityTitle')}
+          </h2>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <a
+              href="https://twitter.com/bhbtc1337"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() =>
+                trackLandingCtaClick('twitter_profile', 'landing_community', {
+                  destination_hostname: 'twitter.com',
+                })
+              }
+              className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-full text-slate-900 dark:text-white text-sm transition-all hover:scale-105"
+            >
+              <Users className="w-4 h-4 text-cyan-400" />
+              Twitter @bhbtc1337
+            </a>
+            <a
+              href={githubRepoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() =>
+                trackLandingCtaClick('github_star', 'landing_community', {
+                  destination_hostname: new URL(githubRepoUrl).hostname,
+                })
+              }
+              className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-full text-slate-900 dark:text-white text-sm transition-all hover:scale-105"
+            >
+              <Star className="w-4 h-4 text-yellow-400" />
+              Star on GitHub
+            </a>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="text-center text-slate-500 text-sm border-t border-slate-200 dark:border-slate-800 pt-8 space-y-2">
+          <p>{t('landing.footerLicense')}</p>
+          <p>
+            <Link
+              to={`/${lang}/support`}
+              className="text-slate-500 hover:text-pink-400 transition-colors underline underline-offset-2"
+            >
+              {t('support.pageTitle')}
+            </Link>
+          </p>
+        </footer>
+      </main>
+    </div>
+  );
+};
+
+export default LandingPage;

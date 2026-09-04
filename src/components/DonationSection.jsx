@@ -1,0 +1,143 @@
+import { useTranslation } from 'react-i18next';
+import { Heart, Wallet, ArrowUpRight, Copy, Check } from 'lucide-react';
+import { DONATION_LINKS, CRYPTO_WALLETS, AFFILIATE_LINKS } from '../config/sponsorData';
+import { useClipboard } from '../utils/useClipboard';
+import { trackAnalyticsEvent } from '../utils/analytics';
+
+/**
+ * 捐赠区块（首页展示）
+ * 显示捐赠渠道和加密货币钱包地址
+ */
+const DonationSection = () => {
+  const { t } = useTranslation();
+  const { copied, copy } = useClipboard();
+
+  const trackSupportLinkClick = (link, supportType) => {
+    trackAnalyticsEvent('support_link_click', {
+      event_category: 'monetization',
+      support_type: supportType,
+      link_name: link.name,
+      placement: 'landing_donation_section',
+      destination_hostname: new URL(link.url).hostname,
+    });
+  };
+
+  const handleWalletCopy = (wallet) => {
+    trackAnalyticsEvent('wallet_address_copy', {
+      event_category: 'monetization',
+      wallet_chain: wallet.chain,
+      wallet_network: wallet.network,
+      placement: 'landing_donation_section',
+    });
+    copy(wallet.address);
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto mb-16">
+      <h2 className="text-2xl font-bold text-white text-center mb-2">{t('donation.title')}</h2>
+      <p className="text-slate-400 text-center text-sm mb-8">{t('donation.subtitle')}</p>
+      <p className="mx-auto mb-6 max-w-2xl text-center text-xs leading-5 text-slate-500">
+        {t('donation.disclosure')}
+      </p>
+
+      {/* 捐赠渠道 */}
+      <div className="grid sm:grid-cols-2 gap-4 mb-6">
+        {DONATION_LINKS.map((link) => (
+          <a
+            key={link.name}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackSupportLinkClick(link, 'donation')}
+            className="flex items-center gap-3 p-4 bg-slate-800 border border-slate-700
+              hover:border-pink-500/40 rounded-xl transition-all hover:scale-105 group"
+          >
+            <div
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-orange-500
+                flex items-center justify-center shrink-0"
+            >
+              <Heart className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="text-white font-semibold group-hover:text-pink-400 transition-colors">
+                {link.name}
+              </div>
+              <div className="text-slate-400 text-xs truncate max-w-[200px]">{link.url}</div>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      {/* 推荐交易所 */}
+      {AFFILIATE_LINKS.length > 0 && (
+        <div className="grid sm:grid-cols-2 gap-4 mb-6">
+          {AFFILIATE_LINKS.map((link) => (
+            <a
+              key={link.name}
+              href={link.url}
+              target="_blank"
+              rel="noopener sponsored noreferrer"
+              onClick={() => trackSupportLinkClick(link, 'affiliate')}
+              className="flex items-center gap-3 p-4 bg-slate-800 border border-slate-700
+                hover:border-yellow-500/40 rounded-xl transition-all hover:scale-105 group"
+            >
+              <div
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500
+                  flex items-center justify-center shrink-0"
+              >
+                <ArrowUpRight className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-white font-semibold group-hover:text-yellow-400 transition-colors">
+                  {link.nameZh} {link.name}
+                </div>
+                <div className="text-slate-400 text-xs">{link.descriptionZh}</div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* 加密货币钱包 */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-slate-400 text-sm">
+          <Wallet className="w-4 h-4" />
+          <span>{t('donation.cryptoLabel')}</span>
+        </div>
+        {CRYPTO_WALLETS.map((wallet) => (
+          <button
+            key={wallet.chain}
+            type="button"
+            onClick={() => handleWalletCopy(wallet)}
+            title={t('donation.copyAddress')}
+            className="w-full flex items-start gap-3 p-4 bg-slate-800 border border-slate-700 rounded-xl
+              text-left cursor-pointer hover:border-cyan-500/40 transition-all group"
+          >
+            <div
+              className="px-2.5 py-1 bg-slate-700 rounded-md text-xs font-mono font-bold
+                text-cyan-400 shrink-0 mt-0.5"
+            >
+              {wallet.chain}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs text-slate-400 mb-1">{wallet.network}</div>
+              <div className="font-mono text-xs text-slate-200 break-all">{wallet.address}</div>
+            </div>
+            <div className="shrink-0 mt-0.5">
+              {copied === wallet.address ? (
+                <span className="flex items-center gap-1 text-xs text-green-400">
+                  <Check className="w-3.5 h-3.5" />
+                  {t('donation.copied')}
+                </span>
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default DonationSection;

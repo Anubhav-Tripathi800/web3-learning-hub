@@ -1,0 +1,189 @@
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import Fuse from 'fuse.js';
+import { Search, X } from 'lucide-react';
+import { useSearchStore } from '../store/useSearchStore';
+import { COURSE_DATA } from '../config/courseData';
+import { useI18nSections } from '../i18n/useI18nSections';
+import { trackAnalyticsEvent } from '../utils/analytics';
+
+const SearchDialog = () => {
+  const navigate = useNavigate();
+  const { lang } = useParams();
+  const { t } = useTranslation();
+  const inputRef = useRef(null);
+  const { isSearchOpen, searchQuery, closeSearch, setSearchQuery, addToHistory } = useSearchStore();
+  const searchTranslationsReady = useI18nSections(isSearchOpen ? ['search'] : [], lang);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Build Fuse.js index once
+  const fuse = useMemo(() => {
+    const items = COURSE_DATA.flatMap((module) =>
+      module.lessons.map((lesson) => ({
+        moduleId: module.id,
+        moduleTitle: module.title,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+      }))
+    );
+    return new Fuse(items, {
+      keys: ['lessonTitle', 'moduleTitle'],
+      threshold: 0.4,
+      includeMatches: true,
+    });
+  }, []);
+
+  // Fuzzy search results
+  const flatResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return fuse.search(searchQuery).map((result) => result.item);
+  }, [searchQuery, fuse]);
+
+  // Group results by module
+  const grouped = useMemo(
+    () =>
+      flatResults.reduce((acc, item) => {
+        if (!acc[item.moduleTitle]) acc[item.moduleTitle] = [];
+        acc[item.moduleTitle].push(item);
+        return acc;
+      }, {}),
+    [flatResults]
+  );
+
+  const activeIndex = flatResults.length > 0 ? Math.min(selectedIndex, flatResults.length - 1) : 0;
+
+  const handleSelect = useCallback(
+    (item, index = selectedIndex) => {
+      trackAnalyticsEvent('search_result_select', {
+        event_category: 'content_discovery',
+        language: lang,
+        query_length: searchQuery.trim().length,
+        search_results_count: flatResults.length,
+        module_id: item.moduleId,
+        lesson_id: item.lessonId,
+        result_rank: index + 1,
+      });
+      addToHistory(searchQuery);
+      closeSearch();
+      navigate(`/${lang}/learn/${item.moduleId}/${item.lessonId}`);
+    },
+    [addToHistory, closeSearch, flatResults.length, lang, navigate, searchQuery, selectedIndex]
+  );
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === 'Escape') {
+        closeSearch();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (flatResults.length > 0 ? (prev + 1) % flatResults.length : 0));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          flatResults.length > 0 ? (prev === 0 ? flatResults.length - 1 : prev - 1) : 0
+        );
+      } else if (e.key === 'Enter' && flatResults.length > 0) {
+        e.preventDefault();
+        handleSelect(flatResults[activeIndex], activeIndex);
+      }
+    },
+    [closeSearch, flatResults, activeIndex, handleSelect]
+  );
+
+  // Auto-focus input when opened
+  useEffect(() => {
+    if (isSearchOpen) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [isSearchOpen]);
+
+  if (!isSearchOpen || !searchTranslationsReady) return null;
+
+  let globalIndex = 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] sm:pt-[15vh]"
+      onClick={closeSearch}
+    >
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('search.dialogLabel')}
+        className="relative w-full max-w-lg mx-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Input */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+          <Search className="w-5 h-5 text-slate-500 dark:text-slate-400 shrink-0" />
+          <input
+            ref={inputRef}
+            value={searchQuery}
+            onChange={(e) => {
+              setSelectedIndex(0);
+              setSearchQuery(e.target.value);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={t('search.placeholder')}
+            aria-label={t('search.inputLabel')}
+            className="flex-1 bg-transparent text-slate-900 dark:text-white placeholder-slate-500 outline-none text-base"
+          />
+          <button
+            onClick={closeSearch}
+            aria-label={t('search.closeLabel')}
+            className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Results */}
+        <div className="max-h-80 overflow-y-auto" role="listbox">
+          {searchQuery.trim() && flatResults.length === 0 && (
+            <div className="px-4 py-8 text-center text-slate-500">{t('search.noResults')}</div>
+          )}
+
+          {Object.entries(grouped).map(([moduleTitle, items]) => (
+            <div key={moduleTitle}>
+              <div className="px-4 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider bg-slate-100/50 dark:bg-slate-800/50">
+                {moduleTitle}
+              </div>
+              {items.map((item) => {
+                const idx = globalIndex++;
+                return (
+                  <button
+                    key={item.lessonId}
+                    role="option"
+                    aria-selected={idx === activeIndex}
+                    onClick={() => handleSelect(item, idx)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={`w-full px-4 py-3 text-left transition-colors ${
+                      idx === activeIndex
+                        ? 'bg-cyan-500/10 text-cyan-400'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {item.lessonTitle}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer hint */}
+        <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-700 flex gap-4 text-xs text-slate-500">
+          <span>{t('search.hintNavigate')}</span>
+          <span>{t('search.hintSelect')}</span>
+          <span>{t('search.hintClose')}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SearchDialog;

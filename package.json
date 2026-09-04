@@ -1,0 +1,111 @@
+{
+  "name": "getstartedwithweb3",
+  "version": "1.0.0",
+  "description": "Modern React-powered Web3 learning platform with interactive tutorials and AI assistance",
+  "type": "module",
+  "scripts": {
+    "predev": "npm run sync-content",
+    "prebuild": "npm run sync-content && npm run ai:index && npm run ai:publish",
+    "sync-content": "node scripts/sync-content.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "postbuild": "node scripts/generate-og-images.mjs && node scripts/generate-sitemap.mjs && node scripts/prerender.mjs",
+    "ai:index": "node scripts/generate-ai-index.mjs",
+    "ai:publish": "node scripts/publish-ai-artifacts.mjs",
+    "ai:verify": "node scripts/verify-ai-entrypoints.mjs",
+    "translation:check": "node scripts/check-translation-coverage.mjs",
+    "mcp:web3": "node scripts/web3-mcp-server.mjs",
+    "mcp:dogfood": "node scripts/dogfood-web3-mcp.mjs",
+    "api:dev": "node scripts/serve-web3-api.mjs",
+    "audit": "npm audit --audit-level=moderate",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist",
+    "lint": "eslint src api server scripts/serve-web3-api.mjs --ext .js,.jsx,.mjs --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint src --ext .js,.jsx --fix",
+    "format": "prettier --write \"src/**/*.{js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,json,css,md}\"",
+    "organize:rename": "node scripts/organize-files.mjs",
+    "organize:format": "node scripts/format-markdown.mjs",
+    "organize:all": "npm run organize:rename && npm run organize:format",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "web3",
+    "blockchain",
+    "education",
+    "react",
+    "tutorial",
+    "cryptocurrency",
+    "bitcoin"
+  ],
+  "author": "beihaili",
+  "license": "MIT",
+  "homepage": "https://bhbtc.xyz/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beihaili/Get-Started-with-Web3.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "fuse.js": "^7.5.0",
+    "html2canvas": "^1.4.1",
+    "i18next": "^26.3.6",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "lucide-react": "^1.31.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-i18next": "^17.0.11",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.18.2",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^18.6.0",
+    "@commitlint/config-conventional": "^20.5.3",
+    "@resvg/resvg-js": "^2.6.2",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.5.4",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "gh-pages": "^6.3.0",
+    "globals": "^17.11.0",
+    "happy-dom": "^20.11.2",
+    "husky": "^9.0.10",
+    "lint-staged": "^15.2.0",
+    "pangu": "^9.1.0",
+    "playwright": "^1.62.1",
+    "postcss": "^8.5.26",
+    "prettier": "^3.9.6",
+    "satori": "^0.29.0",
+    "tailwindcss": "^4.3.0",
+    "terser": "^5.50.0",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "zh/**/*.{md,MD}": [
+      "node scripts/format-markdown.mjs"
+    ]
+  },
+  "overrides": {
+    "fast-uri": "3.1.5"
+  }
+}

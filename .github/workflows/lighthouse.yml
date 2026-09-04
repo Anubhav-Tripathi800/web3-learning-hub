@@ -1,0 +1,71 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    # Needed by the `Format Lighthouse results as PR comment` step below.
+    # Without this, Dependabot PRs get a read-only GITHUB_TOKEN and the
+    # comment call fails with `Resource not accessible by integration`.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        # `npm install` (not `npm ci`) tolerates the transient lockfile drift
+        # that Dependabot PRs occasionally introduce. This workflow only runs
+        # on pull_request, so relaxed install is appropriate here.
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SITE_BASE_URL: https://bhbtc.xyz
+          SITE_BASE_URL: https://bhbtc.xyz
+          VITE_BASE_PATH: /
+          VITE_GITHUB_USERNAME: beihaili
+          VITE_GITHUB_REPO: Get-Started-with-Web3
+          VITE_GITHUB_BRANCH: main
+
+      - name: Run Lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          uploadArtifacts: true
+          configPath: '.github/lighthouse/lighthouserc.json'
+
+      - name: Format Lighthouse results as PR comment
+        if: always()
+        # Posting the comment is a nice-to-have summary; if token perms
+        # are ever tightened again, don't fail the whole workflow.
+        continue-on-error: true
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('.lighthouseci/manifest.json', 'utf8'));
+            const summary = results.map(r => {
+              const s = JSON.parse(fs.readFileSync(r.jsonPath, 'utf8'));
+              const cats = s.categories;
+              return `| ${r.url} | ${Math.round(cats.performance.score*100)} | ${Math.round(cats.accessibility.score*100)} | ${Math.round(cats['best-practices'].score*100)} | ${Math.round(cats.seo.score*100)} |`;
+            }).join('\n');
+            const body = `## Lighthouse Results\n\n| URL | Perf | A11y | BP | SEO |\n|-----|------|------|-----|-----|\n${summary}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });

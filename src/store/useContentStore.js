@@ -1,0 +1,183 @@
+import { create } from 'zustand';
+import { APP_BASE_PATH } from '../config/siteConfig';
+
+/**
+ * 内容管理状态
+ * 管理课程内容加载、缓存、当前学习状态等
+ *
+ * fetchLessonContent(lang, lessonPath) now takes a language prefix
+ * so the same lessonPath can resolve to different language versions.
+ */
+const MAX_CACHE_ENTRIES = 50;
+
+const looksLikeHtmlDocument = (content) => {
+  const normalized = content.trimStart().toLowerCase();
+  return normalized.startsWith('<!doctype html') || normalized.startsWith('<html');
+};
+
+const getLessonContentUrls = (basePath, lang, lessonPath) => [
+  `${basePath}content/${lang}/${lessonPath}/README.md`,
+  `${basePath}content/${lang}/${lessonPath}/README.MD`,
+  `https://raw.githubusercontent.com/beihaili/Get-Started-with-Web3/main/${lang}/${lessonPath}/README.md`,
+  `https://raw.githubusercontent.com/beihaili/Get-Started-with-Web3/main/${lang}/${lessonPath}/README.MD`,
+];
+
+export const useContentStore = create((set, get) => ({
+  // 当前选中的模块和课程
+  activeModule: null,
+  activeLesson: null,
+
+  // 课程内容缓存 { cacheKey: { content, timestamp } }
+  contentCache: {},
+
+  // 正在进行的请求 { cacheKey: Promise }
+  pendingFetches: {},
+
+  // 加载状态
+  contentLoading: false,
+  fetchError: null,
+
+  // 基础路径配置
+  basePath: APP_BASE_PATH,
+
+  // Actions - 导航
+  setActiveModule: (moduleId) =>
+    set({
+      activeModule: moduleId,
+    }),
+
+  setActiveLesson: (moduleId, lessonId) =>
+    set({
+      activeModule: moduleId,
+      activeLesson: lessonId,
+    }),
+
+  clearActiveLesson: () =>
+    set({
+      activeLesson: null,
+    }),
+
+  // Actions - 内容加载（带去重和缓存上限）
+  fetchLessonContent: async (lang, lessonPath) => {
+    const cacheKey = `${lang}/${lessonPath}`;
+    const { contentCache, pendingFetches } = get();
+
+    // 检查缓存
+    if (contentCache[cacheKey]) {
+      return contentCache[cacheKey].content;
+    }
+
+    // 去重：如果同一路径已经在请求中，等待现有请求
+    if (pendingFetches[cacheKey]) {
+      return pendingFetches[cacheKey];
+    }
+
+    const fetchPromise = (async () => {
+      set({ contentLoading: true, fetchError: null });
+
+      try {
+        let content = null;
+        let lastStatus = 'unknown';
+
+        for (const url of getLessonContentUrls(get().basePath, lang, lessonPath)) {
+          const response = await fetch(url);
+          lastStatus = response.status;
+
+          if (!response.ok) {
+            continue;
+          }
+
+          const responseText = await response.text();
+          if (looksLikeHtmlDocument(responseText)) {
+            continue;
+          }
+
+          content = responseText;
+          break;
+        }
+
+        if (content === null) {
+          throw new Error(`Failed to fetch content: ${lastStatus}`);
+        }
+
+        // 缓存内容（带上限淘汰）
+        const currentCache = { ...get().contentCache };
+        const keys = Object.keys(currentCache);
+        if (keys.length >= MAX_CACHE_ENTRIES) {
+          // 删除最旧的条目
+          const oldest = keys.reduce((a, b) =>
+            currentCache[a].timestamp < currentCache[b].timestamp ? a : b
+          );
+          delete currentCache[oldest];
+        }
+
+        currentCache[cacheKey] = { content, timestamp: Date.now() };
+
+        set({
+          contentCache: currentCache,
+          contentLoading: false,
+        });
+
+        return content;
+      } catch (error) {
+        set({
+          fetchError: error.message,
+          contentLoading: false,
+        });
+        throw error;
+      } finally {
+        // 清理 pending
+        const pending = { ...get().pendingFetches };
+        delete pending[cacheKey];
+        set({ pendingFetches: pending });
+      }
+    })();
+
+    // 注册 pending
+    set({
+      pendingFetches: { ...get().pendingFetches, [cacheKey]: fetchPromise },
+    });
+
+    return fetchPromise;
+  },
+
+  // Actions - 缓存管理
+  clearCache: () =>
+    set({
+      contentCache: {},
+    }),
+
+  getCachedContent: (lessonPath) => {
+    const { contentCache } = get();
+    return contentCache[lessonPath];
+  },
+
+  removeCachedContent: (lessonPath) => {
+    const { contentCache } = get();
+    const newCache = { ...contentCache };
+    delete newCache[lessonPath];
+    set({ contentCache: newCache });
+  },
+
+  // 获取缓存大小（条目数）
+  getCacheSize: () => {
+    const { contentCache } = get();
+    return Object.keys(contentCache).length;
+  },
+
+  // 清理旧缓存（超过7天）
+  cleanOldCache: () => {
+    const { contentCache } = get();
+    const now = Date.now();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+    const newCache = Object.entries(contentCache).reduce((acc, [key, value]) => {
+      if (now - value.timestamp < sevenDays) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+    set({ contentCache: newCache });
+  },
+}));

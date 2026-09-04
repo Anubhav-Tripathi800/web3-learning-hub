@@ -1,0 +1,278 @@
+import { createBrowserRouter, Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import ErrorBoundary from '../components/ErrorBoundary';
+import SearchDialog from '../components/SearchDialog';
+import { useSearchStore } from '../store/useSearchStore';
+import { useThemeStore } from '../store/useThemeStore';
+import LanguageProvider from '../i18n/LanguageProvider';
+import { getRouteI18nSections } from '../i18n/namespaceLoaders';
+import { useI18nSections } from '../i18n/useI18nSections';
+import RouteAnalytics from '../components/RouteAnalytics';
+import { APP_BASE_PATH } from '../config/siteConfig';
+
+// Lazy load pages for code splitting
+const LandingPage = lazy(() => import('../pages/LandingPage'));
+const DashboardPage = lazy(() => import('../pages/DashboardPage'));
+const ReaderPage = lazy(() => import('../pages/ReaderPage'));
+const BadgeCollectionPage = lazy(() => import('../pages/BadgeCollectionPage'));
+const ArticlesPage = lazy(() => import('../pages/ArticlesPage'));
+const SupportPage = lazy(() => import('../pages/SupportPage'));
+const ContributorsPage = lazy(() => import('../pages/ContributorsPage'));
+const GlossaryPage = lazy(() => import('../pages/GlossaryPage'));
+const WalletLabPage = lazy(() => import('../pages/WalletLabPage'));
+const SiweLabPage = lazy(() => import('../pages/SiweLabPage'));
+const AccountAbstractionLabPage = lazy(() => import('../pages/AccountAbstractionLabPage'));
+const L2RiskLabPage = lazy(() => import('../pages/L2RiskLabPage'));
+
+// Loading component
+const PageLoader = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+        <p className="mt-4 text-slate-500 dark:text-slate-400">{t('common.loading')}</p>
+      </div>
+    </div>
+  );
+};
+
+// Wrapper component for Suspense + ErrorBoundary
+const SuspenseWrapper = ({ children }) => (
+  <Suspense fallback={<PageLoader />}>
+    <ErrorBoundary>{children}</ErrorBoundary>
+  </Suspense>
+);
+
+const RouteNamespaceLoader = ({ children }) => {
+  const { lang } = useParams();
+  const location = useLocation();
+  const sections = useMemo(() => getRouteI18nSections(location.pathname), [location.pathname]);
+  const sectionsReady = useI18nSections(sections, lang);
+
+  return sectionsReady ? children : <PageLoader />;
+};
+
+/** Syncs theme store to the <html> element's class list */
+const ThemeApplier = ({ children }) => {
+  const theme = useThemeStore((s) => s.theme);
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+  return children;
+};
+
+// Root layout with global overlays (SearchDialog needs router context)
+const RootLayout = () => {
+  const openSearch = useSearchStore((s) => s.openSearch);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        openSearch();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [openSearch]);
+
+  return (
+    <>
+      <RouteAnalytics />
+      <Outlet />
+      <SearchDialog />
+    </>
+  );
+};
+
+/**
+ * Detects browser language and returns the default lang prefix.
+ */
+function detectLang() {
+  const browserLang = navigator.language || 'en';
+  return browserLang.startsWith('zh') ? 'zh' : 'en';
+}
+
+/** Root redirect: / -> /:lang based on browser language */
+const RootRedirect = () => <Navigate to={`/${detectLang()}`} replace />;
+
+/**
+ * Backwards-compatibility redirect component.
+ * Redirects old paths (e.g. /dashboard) to /zh/dashboard.
+ */
+const LegacyRedirect = ({ to }) => {
+  const params = useParams();
+  // Replace :param placeholders with actual values
+  let path = to;
+  if (params.moduleId) path = path.replace(':moduleId', params.moduleId);
+  if (params.lessonId) path = path.replace(':lessonId', params.lessonId);
+  return <Navigate to={path} replace />;
+};
+
+const ROUTER_BASENAME = APP_BASE_PATH === '/' ? '/' : APP_BASE_PATH.replace(/\/$/, '');
+
+/**
+ * 应用路由配置
+ * 使用React Router v6的createBrowserRouter
+ * /:lang prefix enables i18n routing with LanguageProvider
+ */
+export const router = createBrowserRouter(
+  [
+    // Root redirect
+    {
+      path: '/',
+      element: <RootRedirect />,
+    },
+    // Backwards-compat redirects (must be before /:lang to avoid matching)
+    {
+      path: '/dashboard',
+      element: <LegacyRedirect to="/zh/dashboard" />,
+    },
+    {
+      path: '/badges',
+      element: <LegacyRedirect to="/zh/badges" />,
+    },
+    {
+      path: '/learn/:moduleId/:lessonId',
+      element: <LegacyRedirect to="/zh/learn/:moduleId/:lessonId" />,
+    },
+    {
+      path: '/labs/wallet',
+      element: <LegacyRedirect to="/zh/labs/wallet" />,
+    },
+    {
+      path: '/labs/siwe',
+      element: <LegacyRedirect to="/zh/labs/siwe" />,
+    },
+    {
+      path: '/labs/account-abstraction',
+      element: <LegacyRedirect to="/zh/labs/account-abstraction" />,
+    },
+    {
+      path: '/labs/l2-risk',
+      element: <LegacyRedirect to="/zh/labs/l2-risk" />,
+    },
+    // Main i18n routes
+    {
+      path: '/:lang',
+      element: (
+        <ThemeApplier>
+          <LanguageProvider>
+            <RouteNamespaceLoader>
+              <RootLayout />
+            </RouteNamespaceLoader>
+          </LanguageProvider>
+        </ThemeApplier>
+      ),
+      children: [
+        {
+          index: true,
+          element: (
+            <SuspenseWrapper>
+              <LandingPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'dashboard',
+          element: (
+            <SuspenseWrapper>
+              <DashboardPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'learn/:moduleId/:lessonId',
+          element: (
+            <SuspenseWrapper>
+              <ReaderPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'badges',
+          element: (
+            <SuspenseWrapper>
+              <BadgeCollectionPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'articles',
+          element: (
+            <SuspenseWrapper>
+              <ArticlesPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'support',
+          element: (
+            <SuspenseWrapper>
+              <SupportPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'contributors',
+          element: (
+            <SuspenseWrapper>
+              <ContributorsPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'glossary',
+          element: (
+            <SuspenseWrapper>
+              <GlossaryPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'labs/wallet',
+          element: (
+            <SuspenseWrapper>
+              <WalletLabPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'labs/siwe',
+          element: (
+            <SuspenseWrapper>
+              <SiweLabPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'labs/account-abstraction',
+          element: (
+            <SuspenseWrapper>
+              <AccountAbstractionLabPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: 'labs/l2-risk',
+          element: (
+            <SuspenseWrapper>
+              <L2RiskLabPage />
+            </SuspenseWrapper>
+          ),
+        },
+        {
+          path: '*',
+          element: <Navigate to="/" replace />,
+        },
+      ],
+    },
+  ],
+  {
+    basename: ROUTER_BASENAME,
+  }
+);
+
+export default router;

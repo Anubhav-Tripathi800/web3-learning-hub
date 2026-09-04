@@ -1,0 +1,91 @@
+name: Feature Request / 功能请求
+description: Suggest a product, learning, AI-native, or curriculum improvement.
+title: '[Feature] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the learner or contributor problem first. 请先描述真实问题，再描述方案。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 问题
+      description: What is hard, missing, confusing, or inefficient today?
+      placeholder: 'When I try to..., I cannot...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: audience
+    attributes:
+      label: Audience / 受众
+      description: Who benefits from this feature?
+      placeholder: 'Beginner learner, Web3 builder, contributor, AI agent, sponsor...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution / 期望方案
+      description: Describe the smallest useful version.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_files
+    attributes:
+      label: Expected files or areas / 预计涉及文件或区域
+      description: List likely files, routes, docs, modules, or pages if you know them.
+      placeholder: 'src/pages/..., docs/..., en/...'
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of done / 完成标准
+      description: What must be true before this issue can be closed?
+      placeholder: 'A PR is merged that..., tests pass, docs are updated...'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category / 类别
+      options:
+        - Lesson content
+        - Learning workflow
+        - AI Tutor
+        - AI-native artifacts or MCP
+        - Search or navigation
+        - Quiz or badges
+        - Accessibility
+        - Performance
+        - SEO or growth
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / 替代方案
+      description: Other approaches you considered.
+
+  - type: textarea
+    id: success
+    attributes:
+      label: Success metric / 成功标准
+      description: What would prove this helped?
+      placeholder: 'More completed lessons, fewer confused comments, better AI citations...'
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution / 贡献意向
+      options:
+        - label: This could be a `good first issue` if maintainers agree.
+        - label: I can help design this.
+        - label: I can help implement this.
