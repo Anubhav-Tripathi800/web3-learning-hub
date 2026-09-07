@@ -95,7 +95,9 @@ Public AI entrypoints:
 | Ethereum and Smart Accounts          |       3 | Post-Pectra/Fusaka Ethereum, account abstraction, UserOperation simulator, smart wallets            |
 
 ## Quick Start
+## Contributing
 
+Contributors can improve documentation, fix issues, and add useful learning resources. Please create a clear pull request describing the changes made.
 ```bash
 git clone https://github.com/beihaili/Get-Started-with-Web3.git
 cd Get-Started-with-Web3
