@@ -93,6 +93,9 @@ Public AI entrypoints:
 | Cross-Chain and Layer 2              |       6 | Scaling, rollups, L2 ecosystems, bridges, risk simulation, practical L2 usage                       |
 | DAO and Decentralized Governance     |       5 | DAO basics, governance design, DAO tooling, case studies, challenges                                |
 | Ethereum and Smart Accounts          |       3 | Post-Pectra/Fusaka Ethereum, account abstraction, UserOperation simulator, smart wallets            |
+## Prerequisites
+
+Before getting started, make sure you have Node.js and npm installed on your system.
 
 ## Quick Start
 
